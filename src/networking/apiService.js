@@ -21,7 +21,6 @@ class ApiService {
     }
   }
 
-  // Thêm các methods khác khi cần
   async searchProducts(query) {
     try {
       const response = await axiosInstance.get('/products', {

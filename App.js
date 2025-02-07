@@ -7,7 +7,7 @@ import WelcomeScreen from "./src/screens/WelcomeScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import { AppProvider, useAppContext } from "./src/context/AppContext";
 import { apiService } from './src/networking/apiService';
-import TabBar from './src/navigation/TabBar'; // Import TabBar
+import TabNavigator from './src/navigation/TabNavigator'; 
 
 
 const Stack = createStackNavigator();
@@ -82,7 +82,7 @@ export default function App() {
                         <Stack.Screen name="Home" component={HomeScreen} />
                     </Stack.Navigator>
                 ) : (
-                    <TabBar /> // Use TabBar when isHomeReady is true
+                    <TabNavigator /> // Use TabBar when isHomeReady is true
                 )}
             </NavigationContainer>
         );

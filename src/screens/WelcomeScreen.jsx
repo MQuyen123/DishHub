@@ -4,22 +4,22 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 import { useAppContext } from "../context/AppContext";
 
-  const WelcomeScreen = () => {
-    const navigation = useNavigation();
-    const { isHomeReady } = useAppContext();
-  
-    useEffect(() => {
-      console.log("WelcomeScreen - isHomeReady:", isHomeReady); // Log 5
-      if (isHomeReady) {
-        console.log("Preparing to navigate to Home"); // Log 6
-        const timeoutId = setTimeout(() => {
-          console.log("Navigating to Home"); // Log 7
-          navigation.replace("Home");
-        }, 2000);
-  
-        return () => clearTimeout(timeoutId);
-      }
-    }, [isHomeReady, navigation]);
+const WelcomeScreen = () => {
+  const navigation = useNavigation();
+  const { isHomeReady } = useAppContext();
+
+  useEffect(() => {
+    console.log("WelcomeScreen - isHomeReady:", isHomeReady); // Log 5
+    if (isHomeReady) {
+      console.log("Preparing to navigate to Home"); // Log 6
+      const timeoutId = setTimeout(() => {
+        console.log("Navigating to Home"); // Log 7
+        navigation.replace("Home");
+      }, 2000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isHomeReady, navigation]);
   return (
     <View style={styles.container}>
       <LinearGradient
