@@ -8,6 +8,7 @@ import HomeScreen from "./src/screens/HomeScreen";
 import { AppProvider, useAppContext } from "./src/context/AppContext";
 import { apiService } from './src/networking/apiService';
 import TabNavigator from './src/navigation/TabNavigator'; 
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 
 const Stack = createStackNavigator();
@@ -72,19 +73,21 @@ export default function App() {
         }, [isHomeReady]);
 
         return (
-            <NavigationContainer>
-                {initialNavigationRoute === 'Welcome' ? (
-                    <Stack.Navigator
-                        initialRouteName={initialNavigationRoute}
-                        screenOptions={{ headerShown: false, gestureEnabled: false }}
-                    >
-                        <Stack.Screen name="Welcome" component={WelcomeScreen} />
-                        <Stack.Screen name="Home" component={HomeScreen} />
-                    </Stack.Navigator>
-                ) : (
-                    <TabNavigator /> // Use TabBar when isHomeReady is true
-                )}
-            </NavigationContainer>
+            <SafeAreaProvider>
+                <NavigationContainer>
+                    {initialNavigationRoute === 'Welcome' ? (
+                        <Stack.Navigator
+                            initialRouteName={initialNavigationRoute}
+                            screenOptions={{ headerShown: false, gestureEnabled: false }}
+                        >
+                            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+                            <Stack.Screen name="Home" component={HomeScreen} />
+                        </Stack.Navigator>
+                    ) : (
+                        <TabNavigator /> 
+                    )}
+                </NavigationContainer>
+            </SafeAreaProvider>
         );
     };
 

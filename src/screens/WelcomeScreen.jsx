@@ -15,7 +15,7 @@ const WelcomeScreen = () => {
       const timeoutId = setTimeout(() => {
         console.log("Navigating to Home"); // Log 7
         navigation.replace("Home");
-      }, 2000);
+      }, 3000);
 
       return () => clearTimeout(timeoutId);
     }

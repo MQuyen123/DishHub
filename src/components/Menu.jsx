@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native";
 import { apiService } from "../networking/apiService";
 import Loading from "./Loading";
+import { Card } from 'react-native-paper';
 
 const Menu = () => {
   const [products, setProducts] = useState([]);
@@ -16,8 +17,8 @@ const Menu = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.fetchAllProducts(); // Fetch tất cả sản phẩm
-      setProducts(data); // Cập nhật danh sách sản phẩm
+      const data = await apiService.fetchAllProducts(); 
+      setProducts(data); 
     } catch (error) {
       setError(error.response?.data?.message || "An error occurred");
     } finally {
@@ -38,13 +39,15 @@ const Menu = () => {
   }
 
   const renderProduct = ({ item }) => (
-    <TouchableOpacity style={styles.productCard}>
-      <Image source={{ uri: item.image }} style={styles.productImage} />
-      <Text style={styles.productTitle}>{item.title}</Text>
-      <Text style={styles.productPrice}>Price: ${item.price}</Text>
-      <View style={styles.ratingContainer}>
-        <Text style={styles.ratingText}>⭐ {item.rating.rate} ({item.rating.count})</Text>
-      </View>
+    <TouchableOpacity style={styles.cardContainer}>
+      <Card style={styles.productCard}>
+        <Card.Cover source={{ uri: item.image }} style={styles.productImage} />
+        <Card.Content>
+          <Text style={styles.productTitle} numberOfLines={1} ellipsizeMode="tail">{item.title}</Text>
+          <Text style={styles.productPrice}>Price: ${item.price}</Text>
+          <Text style={styles.ratingText}>⭐ {item.rating.rate} ({item.rating.count})</Text>
+        </Card.Content>
+      </Card>
     </TouchableOpacity>
   );
 
@@ -54,7 +57,7 @@ const Menu = () => {
         data={products}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id.toString()}
-        numColumns={2} // Hiển thị dạng lưới 2 cột
+        numColumns={2} 
         contentContainerStyle={styles.productList}
       />
     </View>
@@ -79,42 +82,37 @@ const styles = StyleSheet.create({
   productList: {
     paddingVertical: 10,
   },
-  productCard: {
+  cardContainer: {
     flex: 1,
     margin: 10,
+  },
+  productCard: {
     backgroundColor: "#f9f9f9",
     borderRadius: 10,
-    padding: 10,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
     elevation: 3,
   },
   productImage: {
-    width: 100,
-    height: 100,
+    height: 200,
+    width: "100%",
     resizeMode: "contain",
-    marginBottom: 10,
   },
   productTitle: {
     fontSize: 14,
     fontWeight: "600",
-    textAlign: "center",
-    marginBottom: 5,
+    textAlign: "left",
+    marginTop: 5,
   },
   productPrice: {
     fontSize: 14,
     color: "#555",
-    marginBottom: 5,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    textAlign: "left",
+    marginTop: 5,
   },
   ratingText: {
     fontSize: 12,
     color: "#888",
+    textAlign: "left",
+    marginTop: 5,
   },
 });
 
