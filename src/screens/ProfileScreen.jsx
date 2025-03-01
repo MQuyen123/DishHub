@@ -41,13 +41,6 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
-      <View style={styles.headerContainer}>
-        <TouchableOpacity>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.cardContainer}>
           {/* Avatar */}
@@ -202,7 +195,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   saveButton: {
-    backgroundColor: "orange",
+    backgroundColor: "green",
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
@@ -214,7 +207,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   cancelButton: {
-    backgroundColor: "#000",
+    backgroundColor: "red",
     padding: 12,
     borderRadius: 8,
     alignItems: "center",

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'https://fakestoreapi.com';
+const BASE_URL = 'https://dishub-dxacd4dyevg9h3en.southeastasia-01.azurewebsites.net/api';
 
 // Tạo instance axios với cấu hình mặc định
 const axiosInstance = axios.create({
@@ -14,29 +14,20 @@ const axiosInstance = axios.create({
 // Add request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Có thể thêm xử lý token ở đây
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Add response interceptor
 axiosInstance.interceptors.response.use(
-  (response) => {
-    return response.data;
-  },
+  (response) => response.data,
   (error) => {
-    // Xử lý các lỗi response
     if (error.response) {
-      // Server trả về lỗi
       console.error('Error response:', error.response.data);
     } else if (error.request) {
-      // Request được gửi nhưng không nhận được response
       console.error('Error request:', error.request);
     } else {
-      // Lỗi khi setting up request
       console.error('Error:', error.message);
     }
     return Promise.reject(error);

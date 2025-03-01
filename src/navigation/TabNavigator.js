@@ -1,94 +1,108 @@
 import React from "react";
-import { View, TouchableOpacity, StyleSheet, Text } from "react-native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from "@react-navigation/drawer";
+import { Image, View, TouchableOpacity, Text } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import HomeScreen from "../screens/HomeScreen";
 import DishHubBotScreen from "../screens/DishHubBotScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import Scanner from "../components/Scanner";
+import RequestScreen from "../screens/RequestScreen";
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
-const Tab = createBottomTabNavigator();
 
-const CustomTabBar = ({ state, descriptors, navigation }) => {
+const Drawer = createDrawerNavigator();
+
+// Nút mở sidebar trong header
+const CustomHeaderButton = ({ navigation }) => (
+  <TouchableOpacity onPress={() => navigation.openDrawer()} style={{ marginLeft: 15 }}>
+    <FontAwesome name="th-list" size={24} color="white" />
+  </TouchableOpacity>
+);
+
+// **Custom Sidebar với logo**
+const CustomDrawerContent = (props) => {
   return (
-    <View style={styles.tabBarContainer}>
-      <View style={styles.tabBar}>
-        {state.routes
-          .filter((route) => route.name !== "Scan") 
-          .map((route, index) => {
-            const isFocused = state.index === index;
-            const iconName = {
-              Home: "home",
-              DishHubBot: "robot",
-              Profile: "account",
-            }[route.name];
-
-            return (
-              <TouchableOpacity
-                key={route.key}
-                style={styles.tabButton}
-                onPress={() => navigation.navigate(route.name)}
-              >
-                <MaterialCommunityIcons
-                  name={iconName}
-                  size={28}
-                  color={isFocused ? "#FFA500" : "#FFFFFF"}
-                />
-                <Text
-                  style={[
-                    styles.label,
-                    { color: isFocused ? "#FFA500" : "#FFFFFF" },
-                  ]}
-                >
-                  {route.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+    <DrawerContentScrollView {...props}>
+      <View style={{ alignItems: "center", padding: 20 }}>
+        <Image 
+          source={require("../../assets/LogoDishHub.png")} 
+          style={{ width: 120, height: 120, resizeMode: "contain" }} 
+        />
+        <Text style={{ color: "#FFA500", fontSize: 18, marginTop: 10 }}>
+          Welcome to DishHub
+        </Text> 
       </View>
-    </View>
+      <DrawerItemList {...props} /> 
+    </DrawerContentScrollView>
   );
 };
 
+// **Drawer Navigation**
 const TabNavigator = () => {
   return (
-    <Tab.Navigator
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+    <Drawer.Navigator
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      screenOptions={({ navigation }) => ({
+        headerShown: true,
+        headerStyle: { backgroundColor: "#000" },
+        headerTintColor: "#FFA500",
+        headerLeft: () => <CustomHeaderButton navigation={navigation} />,
+        drawerStyle: { backgroundColor: "#000", width: 250 },
+        drawerActiveTintColor: "#FFA500",
+        drawerInactiveTintColor: "#FFFFFF",
+      })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="DishHubBot" component={DishHubBotScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-      <Tab.Screen
-        name="Scan"
-        component={Scanner}
+      <Drawer.Screen 
+        name="Trang chủ" 
+        component={HomeScreen} 
         options={{
-          tabBarButton: () => null, 
+          drawerIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="home" color={color} size={size} />
+          ),
         }}
       />
-    </Tab.Navigator>
+      <Drawer.Screen 
+        name="DishHubBot" 
+        component={DishHubBotScreen} 
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="robot" color={color} size={size} />
+          ),
+        }}
+      />
+      <Drawer.Screen 
+        name="Scan" 
+        component={Scanner} 
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="data-matrix-scan" color={color} size={size} />
+          ),
+        }}
+      />
+      <Drawer.Screen 
+        name="Yêu cầu hỗ trợ" 
+        component={RequestScreen} 
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <FontAwesome6 name="person-circle-exclamation" color={color} size={size}  /> 
+          ),
+        }}
+      />
+      <Drawer.Screen 
+        name="Hồ sơ" 
+        component={ProfileScreen} 
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="account" color={color} size={size} />
+          ),
+        }}
+      />
+      
+    </Drawer.Navigator>
   );
 };
 
-const styles = StyleSheet.create({
-  tabBarContainer: {
-    backgroundColor: "#000",
-  },
-  tabBar: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    height: 70,
-    alignItems: "center",
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  label: {
-    fontSize: 12,
-    marginTop: 5,
-  },
-});
+
 
 export default TabNavigator;

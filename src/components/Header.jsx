@@ -14,13 +14,15 @@ const Header = () => {
 
   return (
     <View style={[styles.headerContainer, { paddingTop: insets.top, height: 60 + insets.top }]}>
-      <Image
-        source={require("../../assets/LogoDishHub.png")}
-        style={styles.logo}
-      />
-      <TouchableOpacity onPress={handleScanPress}>
-        <MaterialCommunityIcons name="line-scan" color="#FFA500" size={32} />
-      </TouchableOpacity>
+      <View  >
+        <Image
+          source={require("../../assets/LogoDishHub.png")}
+          style={styles.logo}
+        />
+        <TouchableOpacity onPress={handleScanPress}>
+          <MaterialCommunityIcons name="line-scan" color="#FFA500" size={32} />
+        </TouchableOpacity>
+      </View> 
     </View>
   );
 };

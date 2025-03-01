@@ -1,103 +1,67 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import * as SplashScreen from "expo-splash-screen";
-import { View } from "react-native"; // Import only if you are using View in this file
-import WelcomeScreen from "./src/screens/WelcomeScreen";
-import HomeScreen from "./src/screens/HomeScreen";
-import { AppProvider, useAppContext } from "./src/context/AppContext";
-import { apiService } from './src/networking/apiService';
-import TabNavigator from './src/navigation/TabNavigator'; 
+import { View, ActivityIndicator } from "react-native";
+import { Provider as PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-
+import NotificationService from "./src/service/NotificationService";
+import TabNavigator from "./src/navigation/TabNavigator";
+import AuthNavigator from "./src/navigation/AuthNavigator";
+import { AuthContext, AuthProvider } from "./src/context/AuthContext";
+import authService from "./src/service/authService";
 
 const Stack = createStackNavigator();
 
-SplashScreen.preventAutoHideAsync();
-
-
 export default function App() {
-    const [appIsReady, setAppIsReady] = useState(false);
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
+  );
+}
 
-    useEffect(() => {
-        async function prepare() {
-            try {
-                await new Promise(resolve => setTimeout(resolve, 2000)); 
-            } catch (e) {
-                console.warn(e);
-            } finally {
-                setAppIsReady(true);
-            }
+function MainApp() {
+  const { user, setUser } = useContext(AuthContext);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Kiểm tra xem người dùng có đăng nhập trước đó không
+    const checkLoginStatus = async () => {
+      try {
+        const storedUser = await authService.getUser();
+        if (storedUser) {
+          setUser(storedUser);
         }
-        prepare();
-    }, []);
-
-    const onLayoutRootView = useCallback(async () => {
-        if (appIsReady) {
-            await SplashScreen.hideAsync();
-        }
-    }, [appIsReady]);
-
-    if (!appIsReady) {
-        return null; // Don't render anything before the app is ready
-    }
-
-
-    const MainApp = () => {  // MainApp is now *inside* App.js
-        const { isHomeReady, setIsHomeReady, setHomeData, setIsLoading } = useAppContext();
-        const [initialNavigationRoute, setInitialNavigationRoute] = useState('Welcome');
-
-
-        useEffect(() => {
-            const prepareHomeData = async () => {
-                setIsLoading(true); // Set loading state before fetching data
-                try {
-                    const data = await apiService.fetchProduct(1);
-                    setHomeData(data);
-                } catch (error) {
-                    console.error("Error fetching home data:", error);
-                    // **IMPORTANT:** Handle the error here appropriately (e.g., show an error message, set an error state)
-                } finally {
-                    setIsLoading(false);
-                    setIsHomeReady(true);
-                }
-            };
-
-            prepareHomeData();
-        }, []);
-
-        useEffect(() => {
-            if (isHomeReady) {
-                setInitialNavigationRoute('Home');
-            }
-        }, [isHomeReady]);
-
-        return (
-            <SafeAreaProvider>
-                <NavigationContainer>
-                    {initialNavigationRoute === 'Welcome' ? (
-                        <Stack.Navigator
-                            initialRouteName={initialNavigationRoute}
-                            screenOptions={{ headerShown: false, gestureEnabled: false }}
-                        >
-                            <Stack.Screen name="Welcome" component={WelcomeScreen} />
-                            <Stack.Screen name="Home" component={HomeScreen} />
-                        </Stack.Navigator>
-                    ) : (
-                        <TabNavigator /> 
-                    )}
-                </NavigationContainer>
-            </SafeAreaProvider>
-        );
+      } catch (error) {
+        console.error("Failed to load user", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
+    checkLoginStatus();
 
+    // Bắt đầu polling thông báo khi ứng dụng mở
+    NotificationService.startPolling();
 
-    return (
-        <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-            <AppProvider>
-                <MainApp /> 
-            </AppProvider>
-        </View>
-    );
+    return () => {
+      NotificationService.stopPolling();
+    };
+  }, []);
+
+  if (loading) {
+    return <ActivityIndicator size="large" color="#0000ff" />;
+  }
+
+  return (
+    <PaperProvider>
+      <View style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            {user ? <TabNavigator /> : <AuthNavigator />}
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </View>
+    </PaperProvider>
+  );
 }

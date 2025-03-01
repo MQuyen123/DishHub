@@ -4,7 +4,7 @@ import { Searchbar } from 'react-native-paper';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SearchBar = () => {
-  const insets = useSafeAreaInsets(); // Đưa vào bên trong component function
+  const insets = useSafeAreaInsets(); 
   const [searchQuery, setSearchQuery] = React.useState('');
 
   return (
