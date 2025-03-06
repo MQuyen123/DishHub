@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 class NotificationService {
   constructor() {
     this.lastCreatedAt = null;
-    this.pollingInterval = 3000;
+    this.pollingInterval = 300000;
     this.isPolling = false;
     this.intervalId = null;
     this.initialized = false;

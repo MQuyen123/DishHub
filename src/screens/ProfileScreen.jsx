@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Avatar } from 'react-native-paper';
+import LogoutButton from '../components/LogoutButton';
 
 const ProfileScreen = () => {
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -127,6 +128,7 @@ const ProfileScreen = () => {
               </>
             )}
           </View>
+          <LogoutButton/>
         </View>
       </ScrollView>
     </SafeAreaView>

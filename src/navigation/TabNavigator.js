@@ -9,6 +9,7 @@ import ProfileScreen from "../screens/ProfileScreen";
 import Scanner from "../components/Scanner";
 import RequestScreen from "../screens/RequestScreen";
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import OrderScreen from "../screens/OrderScreen";
 
 
 const Drawer = createDrawerNavigator();
@@ -83,6 +84,15 @@ const TabNavigator = () => {
       <Drawer.Screen 
         name="Yêu cầu hỗ trợ" 
         component={RequestScreen} 
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <FontAwesome6 name="person-circle-exclamation" color={color} size={size}  /> 
+          ),
+        }}
+      />
+       <Drawer.Screen 
+        name="Đơn hàng" 
+        component={OrderScreen} 
         options={{
           drawerIcon: ({ color, size }) => (
             <FontAwesome6 name="person-circle-exclamation" color={color} size={size}  /> 
