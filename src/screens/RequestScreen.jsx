@@ -1,67 +1,122 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from "react-native";
-import { Table, Row } from "react-native-table-component";
+import React, { useEffect, useState, useCallback, useContext } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import { Table, Row, Rows } from "react-native-table-component";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
-import { apiService } from "../networking/apiService";
+import * as signalR from "@microsoft/signalr";
+import Toast from "react-native-toast-message";
+import { Button, Menu } from "react-native-paper";
+import { AuthContext } from "../context/AuthContext";
 
 const RequestScreen = () => {
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [dateFilter, setDateFilter] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedTable, setSelectedTable] = useState("");
+  const [tableOptions, setTableOptions] = useState([]);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const restaurantId = 1; 
 
-  const tableHead = ["ID", "Order ID", "Loại", "Ghi chú", "Thời gian", "Trạng thái"];
-  const widthArr = [60, 100, 120, 150, 120, 120];
+  const { auth } = useContext(AuthContext);
 
-  const fetchRequests = async () => {
-    try {
-      console.log("[DEBUG] Bắt đầu gọi API");
-      setError(null);
-      const response = await apiService.fetchRequests();
-      console.log("[DEBUG] Phản hồi API:", response);
-      const data = response?.isSucess ? response.data : [];
-      console.log('hehhee' + data);
-      setRequests(data)
-      console.log("[DEBUG] Cập nhật requests thành công");
-    } catch (error) {
-      console.error("[DEBUG] Lỗi trong quá trình fetch:", error);
-      setError("Không thể tải dữ liệu. Vui lòng thử lại.");
-      setRequests([]);
-    } finally {
-      console.log("[DEBUG] Kết thúc quá trình fetch");
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  const tableHead = ["Bàn", "Loại", "Ghi chú", "Thời gian", "Trạng thái", "Hành động"];
+  const widthArr = [80, 120, 150, 100, 90, 150];
 
   useEffect(() => {
-    fetchRequests();
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(
+        `https://dishub-dxacd4dyevg9h3en.southeastasia-01.azurewebsites.net/hub/requests?restaurantId=${restaurantId}`
+      )
+      .withAutomaticReconnect()
+      .build();
+
+    connection
+      .start()
+      .then(() => console.log("Connected to SignalR"))
+      .catch((err) => {
+        console.error("Connection failed: ", err);
+        setError("Không thể kết nối đến SignalR. Vui lòng thử lại.");
+        setLoading(false);
+      });
+
+    connection.on("LoadCurrentRequest", (data) => {
+      setRequests(data.data || data); 
+      setLoading(false);
+    });
+
+    connection.on("ReceiveNewRequest", (newRequest) => {
+      setRequests((prev) => [newRequest, ...prev]);
+      Toast.show({
+        type: "success",
+        text1: "Yêu cầu mới",
+        text2: `Yêu cầu mới nhận được: ${newRequest.id}`,
+      });
+    });
+
+    connection.on("UpdateRequestStatus", (updatedRequest) => {
+      setRequests((prevRequests) =>
+        prevRequests.map((request) =>
+          request.id === updatedRequest.id
+            ? { ...request, status: updatedRequest.status }
+            : request
+        )
+      );
+      Toast.show({
+        type: "info",
+        text1: "Cập nhật yêu cầu",
+        text2: `Trạng thái yêu cầu ${updatedRequest.id} được cập nhật thành ${updatedRequest.status}`,
+      });
+    });
+
+    return () => {
+      connection.stop();
+    };
   }, []);
 
   useEffect(() => {
-    filterRequestsByDate(dateFilter);
+    const formattedDate = dayjs(dateFilter).format("YYYY-MM-DD");
+    const tablesForDate = [
+      ...new Set(
+        requests
+          .filter(
+            (request) =>
+              dayjs(request?.createdAt, "YYYY-MM-DD HH:mm:ss").format("YYYY-MM-DD") === formattedDate
+          )
+          .map((req) => req?.tableName)
+          .filter(Boolean)
+      ),
+    ];
+    setTableOptions(["Tất cả", ...tablesForDate]);
   }, [requests, dateFilter]);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchRequests();
-  };
+  useEffect(() => {
+    filterRequests();
+  }, [requests, dateFilter, selectedTable, filterRequests]);
 
-  const filterRequestsByDate = (date) => {
-    const formattedDate = dayjs(date).format("YYYY-MM-DD");
-    console.log(requests);
-    const filtered = (requests || []).filter(
-      (request) => {
-        const requestDate = dayjs(request?.createdAt, "YYYY-MM-DD HH:mm:ss").format("YYYY-MM-DD");
-        return requestDate === formattedDate; 
-      }
-    );
-    setFilteredRequests(filtered.reverse());
-  };
+  const filterRequests = useCallback(() => {
+    const formattedDate = dayjs(dateFilter).format("YYYY-MM-DD");
+    let filtered = (requests || []).filter((request) => {
+      const requestDate = dayjs(request?.createdAt, "YYYY-MM-DD HH:mm:ss").format("YYYY-MM-DD");
+      return requestDate === formattedDate;
+    });
+
+    if (selectedTable && selectedTable !== "Tất cả") {
+      filtered = filtered.filter((request) => request?.tableName === selectedTable);
+    }
+
+    setFilteredRequests(filtered);
+  }, [requests, dateFilter, selectedTable]);
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -78,6 +133,50 @@ const RequestScreen = () => {
     }
   };
 
+  const updateRequestStatus = async (id, status) => {
+    if (!auth || !auth.token) {
+      Alert.alert("Lỗi", "Token xác thực không tồn tại. Vui lòng đăng nhập lại.");
+      return;
+    }
+      if (response.ok) {
+        Alert.alert("Thành công", `Đã cập nhật trạng thái thành ${getStatusStyle(status).text}`);
+      } else {
+        Alert.alert("Lỗi", "Không thể cập nhật trạng thái yêu cầu.");
+      }  
+  };
+
+  const getActionButtons = (request) => {
+    const { status, id } = request;
+    switch (status) {
+      case "pending":
+        return (
+          <View style={styles.buttonContainer}>
+            <Button
+              mode="contained"
+              onPress={() => updateRequestStatus(id, "inProgress")}
+              style={styles.button}
+            >
+              Xử lý
+            </Button>
+          </View>
+        );
+      case "inProgress":
+        return (
+          <View style={styles.buttonContainer}>
+            <Button
+              mode="contained"
+              onPress={() => updateRequestStatus(id, "completed")}
+              style={styles.button}
+            >
+              Hoàn tất
+            </Button>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -91,12 +190,48 @@ const RequestScreen = () => {
       return (
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity onPress={fetchRequests} style={styles.retryButton}>
+          <TouchableOpacity
+            onPress={() => {
+              setLoading(true);
+              setError(null);
+            }}
+            style={styles.retryButton}
+          >
             <Text style={styles.retryText}>Thử lại</Text>
           </TouchableOpacity>
         </View>
       );
     }
+
+    const tableData = filteredRequests.map((request) => [
+      request?.tableName || "--",
+      request?.typeName || "--",
+      <Text style={styles.noteText} key={`note-${request.id}`}>{request?.note || "--"}</Text>,
+      request?.createdAt
+        ? dayjs(request.createdAt, "YYYY-MM-DD HH:mm:ss").format("HH:mm")
+        : "--",
+      <View
+        style={[
+          styles.statusBadge,
+          { backgroundColor: getStatusStyle(request?.status).bg },
+        ]}
+        key={`status-${request.id}`}
+      >
+        <Text
+          style={[
+            styles.statusText,
+            { color: getStatusStyle(request?.status).textColor },
+          ]}
+        >
+          {getStatusStyle(request?.status).text}
+        </Text>
+      </View>,
+      <View style={{ padding: 8 }} key={`action-${request.id}`}>
+        {getActionButtons(request)}
+      </View>,
+    ]);
+
+    console.log("Thời gian nhận yêu cầu",tableData.request?.createdAt);
 
     return (
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -108,32 +243,13 @@ const RequestScreen = () => {
               textStyle={styles.headerText}
               widthArr={widthArr}
             />
-            {filteredRequests.length > 0 ? (
-              filteredRequests.map((request, index) => {
-                console.log("Request item:", request); // Debug từng item
-                return (
-                  <Row
-                    key={request?.id || index}
-                    data={[
-                      request?.id.toString() || "--",
-                      request?.orderId.toString() || "--",
-                      request?.typeName || "--",
-                      request?.note || "--",
-                      request?.createdAt ? 
-                        dayjs(request.createdAt, "YYYY-MM-DD HH:mm:ss").format("HH:mm") 
-                        : "--",
-                      getStatusStyle(request?.status).text,
-                    ]}
-                    style={[
-                      styles.row,
-                      index % 2 === 0 && styles.evenRow,
-                      { backgroundColor: getStatusStyle(request?.status).bg }
-                    ]}
-                    textStyle={{ color: getStatusStyle(request?.status).textColor }} // Đảm bảo đây là object
-                    widthArr={widthArr}
-                  />
-                );
-              })
+            {tableData.length > 0 ? (
+              <Rows
+                data={tableData}
+                widthArr={widthArr}
+                style={(index) => (index % 2 === 0 ? styles.evenRow : null)}
+                textStyle={styles.rowText}
+              />
             ) : (
               <View style={styles.noDataRow}>
                 <Text style={styles.noDataText}>
@@ -147,6 +263,9 @@ const RequestScreen = () => {
     );
   };
 
+  const openMenu = () => setMenuVisible(true);
+  const closeMenu = () => setMenuVisible(false);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -158,6 +277,31 @@ const RequestScreen = () => {
             {dayjs(dateFilter).format("DD/MM/YYYY")}
           </Text>
         </TouchableOpacity>
+        <Menu
+          visible={menuVisible}
+          onDismiss={closeMenu}
+          anchor={
+            <Button
+              onPress={openMenu}
+              mode="contained-tonal"
+              style={styles.menuButton}
+            >
+              {selectedTable || "Chọn bàn"}
+            </Button>
+          }
+          style={styles.menuContainer}
+        >
+          {tableOptions.map((table, index) => (
+            <Menu.Item
+              key={index}
+              onPress={() => {
+                setSelectedTable(table);
+                closeMenu();
+              }}
+              title={table}
+            />
+          ))}
+        </Menu>
       </View>
 
       {showPicker && (
@@ -167,25 +311,13 @@ const RequestScreen = () => {
           display="default"
           onChange={(event, selectedDate) => {
             setShowPicker(false);
-            if (selectedDate) {
-              setDateFilter(selectedDate);
-            }
+            if (selectedDate) setDateFilter(selectedDate);
           }}
         />
       )}
 
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#3498db"]}
-            tintColor="#3498db"
-          />
-        }
-      >
-        {renderContent()}
-      </ScrollView>
+      <ScrollView>{renderContent()}</ScrollView>
+      <Toast />
     </View>
   );
 };
@@ -215,6 +347,11 @@ const styles = StyleSheet.create({
   tableWrapper: {
     borderRadius: 12,
     backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.23,
+    shadowRadius: 2.62,
+    elevation: 4,
   },
   tableBorder: {
     borderWidth: 1,
@@ -228,14 +365,22 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "600",
     textAlign: "center",
-  },
-  row: {
-    minHeight: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ecf0f1",
+    fontSize: 16,
   },
   evenRow: {
     backgroundColor: "#f8f9fa",
+  },
+  rowText: {
+    textAlign: "center",
+    padding: 8,
+    fontSize: 14,
+    color: "#333",
+  },
+  noteText: {
+    paddingLeft: 8,
+    textAlign: "left",
+    fontSize: 14,
+    color: "#333",
   },
   noDataRow: {
     height: 100,
@@ -267,6 +412,30 @@ const styles = StyleSheet.create({
   retryText: {
     color: "white",
     fontWeight: "500",
+  },
+  statusBadge: {
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    alignSelf: "center",
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  buttonContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  button: {
+    marginHorizontal: 4,
+  },
+  menuButton: {
+    marginTop: 5,
+  },
+  menuContainer: {
+    marginTop: 40,
   },
 });
 

@@ -1,67 +1,50 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useContext } from "react";
 import { NavigationContainer } from "@react-navigation/native";
-import { createStackNavigator } from "@react-navigation/stack";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Text } from "react-native";
 import { Provider as PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import NotificationService from "./src/service/NotificationService";
 import TabNavigator from "./src/navigation/TabNavigator";
 import AuthNavigator from "./src/navigation/AuthNavigator";
-import { AuthContext, AuthProvider } from "./src/context/AuthContext";
-import authService from "./src/service/authService";
+import { AuthProvider, AuthContext } from "./src/context/AuthContext";
+import "react-native-get-random-values";
+import "event-target-shim";
+import { TextEncoder, TextDecoder } from "fast-text-encoding";
 
-const Stack = createStackNavigator();
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
-  );
-}
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
 
 function MainApp() {
-  const { user, setUser } = useContext(AuthContext);
-  const [loading, setLoading] = useState(true);
+  const { auth, authLoading } = useContext(AuthContext);
 
   useEffect(() => {
-    // Kiểm tra xem người dùng có đăng nhập trước đó không
-    const checkLoginStatus = async () => {
-      try {
-        const storedUser = await authService.getUser();
-        if (storedUser) {
-          setUser(storedUser);
-        }
-      } catch (error) {
-        console.error("Failed to load user", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkLoginStatus();
-
-    // Bắt đầu polling thông báo khi ứng dụng mở
-    NotificationService.startPolling();
-
-    return () => {
-      NotificationService.stopPolling();
-    };
+    // Khởi tạo kết nối thông báo SignalR
+    NotificationService.initialize();
   }, []);
 
-  if (loading) {
-    return <ActivityIndicator size="large" color="#0000ff" />;
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
   }
 
   return (
-    <PaperProvider>
-      <View style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <NavigationContainer>
-            {user ? <TabNavigator /> : <AuthNavigator />}
-          </NavigationContainer>
-        </SafeAreaProvider>
-      </View>
-    </PaperProvider>
+    <NavigationContainer>
+      {auth ? <TabNavigator /> : <AuthNavigator />}
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <PaperProvider>
+        <AuthProvider>
+          <MainApp />
+        </AuthProvider>
+      </PaperProvider>
+    </SafeAreaProvider>
   );
 }

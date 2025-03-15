@@ -1,5 +1,9 @@
 import React from "react";
-import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from "@react-navigation/drawer";
+import {
+  createDrawerNavigator,
+  DrawerContentScrollView,
+  DrawerItemList,
+} from "@react-navigation/drawer";
 import { Image, View, TouchableOpacity, Text } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -8,15 +12,18 @@ import DishHubBotScreen from "../screens/DishHubBotScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import Scanner from "../components/Scanner";
 import RequestScreen from "../screens/RequestScreen";
-import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import OrderScreen from "../screens/OrderScreen";
-
+import DishDetailCreen from "../screens/DishDetailScreen";
 
 const Drawer = createDrawerNavigator();
 
 // Nút mở sidebar trong header
 const CustomHeaderButton = ({ navigation }) => (
-  <TouchableOpacity onPress={() => navigation.openDrawer()} style={{ marginLeft: 15 }}>
+  <TouchableOpacity
+    onPress={() => navigation.openDrawer()}
+    style={{ marginLeft: 15 }}
+  >
     <FontAwesome name="th-list" size={24} color="white" />
   </TouchableOpacity>
 );
@@ -26,15 +33,15 @@ const CustomDrawerContent = (props) => {
   return (
     <DrawerContentScrollView {...props}>
       <View style={{ alignItems: "center", padding: 20 }}>
-        <Image 
-          source={require("../../assets/LogoDishHub.png")} 
-          style={{ width: 120, height: 120, resizeMode: "contain" }} 
+        <Image
+          source={require("../../assets/LogoDishHub.png")}
+          style={{ width: 120, height: 120, resizeMode: "contain" }}
         />
         <Text style={{ color: "#FFA500", fontSize: 18, marginTop: 10 }}>
           Welcome to DishHub
-        </Text> 
+        </Text>
       </View>
-      <DrawerItemList {...props} /> 
+      <DrawerItemList {...props} />
     </DrawerContentScrollView>
   );
 };
@@ -54,65 +61,81 @@ const TabNavigator = () => {
         drawerInactiveTintColor: "#FFFFFF",
       })}
     >
-      <Drawer.Screen 
-        name="Trang chủ" 
-        component={HomeScreen} 
+      <Drawer.Screen
+        name="Trang chủ"
+        component={HomeScreen}
         options={{
           drawerIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="home" color={color} size={size} />
           ),
         }}
       />
-      <Drawer.Screen 
-        name="DishHubBot" 
-        component={DishHubBotScreen} 
+      {/* <Drawer.Screen
+        name="DishHubBot"
+        component={DishHubBotScreen}
         options={{
           drawerIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="robot" color={color} size={size} />
           ),
         }}
       />
-      <Drawer.Screen 
-        name="Scan" 
-        component={Scanner} 
+      <Drawer.Screen
+        name="Scan"
+        component={Scanner}
         options={{
           drawerIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="data-matrix-scan" color={color} size={size} />
+            <MaterialCommunityIcons
+              name="data-matrix-scan"
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      /> */}
+      <Drawer.Screen
+        name="Yêu cầu hỗ trợ"
+        component={RequestScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <FontAwesome6
+              name="person-circle-exclamation"
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
-      <Drawer.Screen 
-        name="Yêu cầu hỗ trợ" 
-        component={RequestScreen} 
+      <Drawer.Screen
+        name="Đơn hàng"
+        component={OrderScreen}
         options={{
           drawerIcon: ({ color, size }) => (
-            <FontAwesome6 name="person-circle-exclamation" color={color} size={size}  /> 
+            <MaterialCommunityIcons
+              name="food-turkey"
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
-       <Drawer.Screen 
-        name="Đơn hàng" 
-        component={OrderScreen} 
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <FontAwesome6 name="person-circle-exclamation" color={color} size={size}  /> 
-          ),
-        }}
-      />
-      <Drawer.Screen 
-        name="Hồ sơ" 
-        component={ProfileScreen} 
+      <Drawer.Screen
+        name="Hồ sơ"
+        component={ProfileScreen}
         options={{
           drawerIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="account" color={color} size={size} />
           ),
         }}
       />
-      
+      <Drawer.Screen
+        name="DishDetail"
+        component={DishDetailCreen}
+        options={{
+          drawerItemStyle: { display: "none" },
+        }}
+      />
     </Drawer.Navigator>
   );
 };
-
-
 
 export default TabNavigator;

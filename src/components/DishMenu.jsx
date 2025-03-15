@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
   Dimensions,
   TouchableOpacity,
 } from "react-native";
-import { Card, Menu, List } from "react-native-paper"; // Import các component từ react-native-paper
-import axios from "axios";
+import { Card, Menu, List } from "react-native-paper";
+import { useNavigation } from "@react-navigation/native";
+import { AuthContext } from "../context/AuthContext";
 import { formatPrice } from "../utils/formatPrice";
+import { apiService } from "../networking/apiService"; // Đảm bảo đường dẫn chính xác
 
 const { width } = Dimensions.get("window");
 const ITEM_SIZE = width / 2 - 15;
@@ -24,20 +26,24 @@ const DishMenu = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState(false);
+  const navigation = useNavigation();
+  const { auth } = useContext(AuthContext);
 
   useEffect(() => {
-    fetchCategories();
-    fetchDishes();
-  }, []);
+    if (auth && auth.token) {
+      fetchCategories();
+      fetchDishes();
+    }
+  }, [auth]);
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get(
-        "https://dishub-dxacd4dyevg9h3en.southeastasia-01.azurewebsites.net/api/categories"
-      );
-      setCategories(
-        Array.isArray(response.data?.data) ? response.data.data : []
-      );
+      const response = await apiService.fetchCategories(auth.token);
+      if (response.isSucess) {
+        setCategories(response.data);
+      } else {
+        setCategories([]);
+      }
     } catch (error) {
       console.error("Lỗi lấy danh mục món ăn:", error);
       setCategories([]);
@@ -46,10 +52,12 @@ const DishMenu = () => {
 
   const fetchDishes = async () => {
     try {
-      const response = await axios.get(
-        "https://dishub-dxacd4dyevg9h3en.southeastasia-01.azurewebsites.net/api/dishes"
-      );
-      setDishes(Array.isArray(response.data?.data) ? response.data.data : []);
+      const response = await apiService.fetchAllDishes(auth.token);
+      if (response.isSucess) {
+        setDishes(response.data);
+      } else {
+        setDishes([]);
+      }
     } catch (error) {
       console.error("Lỗi lấy danh sách món ăn:", error);
     } finally {
@@ -58,7 +66,8 @@ const DishMenu = () => {
   };
 
   const filteredDishes = dishes.filter((dish) => {
-    const matchesCategory = filter === "all" || dish.categoryId.toString() === filter;
+    const matchesCategory =
+      filter === "all" || dish.categoryId.toString() === filter;
     const matchesSearch = dish.name
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
@@ -66,9 +75,9 @@ const DishMenu = () => {
   });
 
   const openMenu = () => {
-    console.log("Nút dropdown được nhấn!");
     setVisible(true);
-  };  
+  };
+
   const closeMenu = () => setVisible(false);
 
   if (loading) {
@@ -94,7 +103,8 @@ const DishMenu = () => {
           anchor={
             <TouchableOpacity onPress={openMenu} style={styles.dropdownButton}>
               <Text style={styles.dropdownButtonText}>
-                {categories.find((cat) => cat.id.toString() === filter)?.name || "Tất cả"}
+                {categories.find((cat) => cat.id.toString() === filter)?.name ||
+                  "Tất cả"}
               </Text>
             </TouchableOpacity>
           }
@@ -127,20 +137,26 @@ const DishMenu = () => {
         numColumns={2}
         columnWrapperStyle={styles.row}
         renderItem={({ item }) => (
-          <Card style={styles.card}>
-            <Image
-              source={
-                item.image
-                  ? { uri: item.image }
-                  : require("../../assets/SmallLogo.png")
-              }
-              style={styles.image}
-            />
-            <Card.Content>
-              <Text style={styles.title}>{item.name}</Text>
-              <Text style={styles.price}>{formatPrice(item.price)}</Text>
-            </Card.Content>
-          </Card>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate("DishDetail", { dishId: item.id })
+            }
+          >
+            <Card style={styles.card}>
+              <Image
+                source={
+                  item.image
+                    ? { uri: item.image }
+                    : require("../../assets/SmallLogo.png")
+                }
+                style={styles.image}
+              />
+              <Card.Content>
+                <Text style={styles.title}>{item.name}</Text>
+                <Text style={styles.price}>{formatPrice(item.price)}</Text>
+              </Card.Content>
+            </Card>
+          </TouchableOpacity>
         )}
       />
     </View>
@@ -158,7 +174,7 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     marginBottom: 15,
-    alignSelf: "flex-start", // Đảm bảo nó không chiếm hết màn hình
+    alignSelf: "flex-start",
   },
   dropdownButton: {
     paddingVertical: 10,
@@ -167,8 +183,8 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
     borderRadius: 8,
     backgroundColor: "#fff",
-    elevation: 2, // Bóng cho Android
-    shadowColor: "#000", // Bóng cho iOS
+    elevation: 2,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -178,7 +194,7 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   menu: {
-    width: 200, // Độ rộng của menu
+    width: 200,
     marginTop: 5,
   },
   row: {

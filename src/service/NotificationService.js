@@ -1,27 +1,38 @@
-import { apiService } from '../networking/apiService';
+import { HubConnectionBuilder } from '@microsoft/signalr';
 import * as Notifications from 'expo-notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 class NotificationService {
   constructor() {
-    this.lastCreatedAt = null;
-    this.pollingInterval = 300000;
-    this.isPolling = false;
-    this.intervalId = null;
+    // Cấu hình restaurantId (có thể truyền từ bên ngoài nếu cần)
+    const restaurantId = 1;
+
+    // Khởi tạo kết nối SignalR cho requests
+    this.requestConnection = new HubConnectionBuilder()
+      .withUrl(`https://dishub-dxacd4dyevg9h3en.southeastasia-01.azurewebsites.net/hub/requests?restaurantId=${restaurantId}`)
+      .withAutomaticReconnect()
+      .build();
+
+    // Khởi tạo kết nối SignalR cho orders
+    this.orderConnection = new HubConnectionBuilder()
+      .withUrl(`https://dishub-dxacd4dyevg9h3en.southeastasia-01.azurewebsites.net/hub/order-details?restaurantId=${restaurantId}`)
+      .withAutomaticReconnect()
+      .build();
+
     this.initialized = false;
-    this.cacheKey = 'cached_requests'; // Key để lưu trữ trong AsyncStorage
   }
 
-  // ======= INITIALIZATION ======= //
+  // Khởi tạo dịch vụ và kết nối SignalR
   initialize = async () => {
     if (this.initialized) return;
 
+    // Yêu cầu quyền thông báo
     const { status } = await Notifications.requestPermissionsAsync();
     if (status !== 'granted') {
       console.warn('Quyền thông báo bị từ chối!');
       return;
     }
 
+    // Thiết lập cách xử lý thông báo
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowAlert: true,
@@ -30,146 +41,95 @@ class NotificationService {
       }),
     });
 
-    // Khôi phục lastCreatedAt từ cache nếu có
-    const cachedData = await this.getCachedData();
-    if (cachedData && cachedData.lastCreatedAt) {
-      this.lastCreatedAt = cachedData.lastCreatedAt;
+    // Kết nối đến hub requests
+    try {
+      await this.requestConnection.start();
+      console.log('Kết nối SignalR cho requests đã khởi động');
+    } catch (err) {
+      console.error('Kết nối SignalR cho requests thất bại:', err);
     }
+
+    // Kết nối đến hub orders
+    try {
+      await this.orderConnection.start();
+      console.log('Kết nối SignalR cho orders đã khởi động');
+    } catch (err) {
+      console.error('Kết nối SignalR cho orders thất bại:', err);
+    }
+
+    // Thiết lập lắng nghe sự kiện
+    this.setupEventListeners();
 
     this.initialized = true;
   };
 
-  // ======= CACHE HANDLING ======= //
-  // Lấy dữ liệu từ AsyncStorage
-  getCachedData = async () => {
-    try {
-      const jsonValue = await AsyncStorage.getItem(this.cacheKey);
-      return jsonValue != null ? JSON.parse(jsonValue) : null;
-    } catch (error) {
-      console.error('Lỗi khi lấy cache:', error);
-      return null;
-    }
-  };
+  // Thiết lập lắng nghe sự kiện từ hai hub
+  setupEventListeners = () => {
+    // Sự kiện từ hub requests
+    this.requestConnection.on('ReceiveNewRequest', (newRequest) => {
+      this.showNotification('Yêu cầu mới', this.formatRequestBody(newRequest));
+    });
 
-  // Lưu dữ liệu vào AsyncStorage
-  setCachedData = async (requests) => {
-    try {
-      const dataToCache = {
-        requests,
-        lastCreatedAt: this.lastCreatedAt,
-      };
-      await AsyncStorage.setItem(this.cacheKey, JSON.stringify(dataToCache));
-    } catch (error) {
-      console.error('Lỗi khi lưu cache:', error);
-    }
-  };
+    this.requestConnection.on('UpdateRequestStatus', (updatedRequest) => {
+      this.showNotification('Cập nhật yêu cầu', this.formatRequestUpdateBody(updatedRequest));
+    });
 
-  // ======= POLLING LOGIC ======= //
-  startPolling = async () => {
-    if (!this.isPolling) {
-      await this.initialize();
-      this.checkRequests();
-      this.intervalId = setInterval(this.checkRequests, this.pollingInterval);
-      this.isPolling = true;
-      console.log('Bắt đầu polling...');
-    }
-  };
+    // Sự kiện từ hub orders
+    this.orderConnection.on('ReceiveNewOrder', (newOrder) => {
+      this.showNotification('Đơn hàng mới', this.formatOrderBody(newOrder));
+    });
 
-  stopPolling = () => {
-    if (this.isPolling && this.intervalId) {
-      clearInterval(this.intervalId);
-      this.isPolling = false;
-      this.intervalId = null;
-      console.log('Dừng polling...');
-    }
-  };
-
-  checkRequests = async () => {
-    try {
-      // Lấy dữ liệu từ API
-      const response = await apiService.fetchRequests();
-      const serverRequests = response.data;
-
-      // Lấy dữ liệu từ cache
-      const cachedData = await this.getCachedData();
-      const cachedRequests = cachedData ? cachedData.requests : [];
-
-      // So sánh dữ liệu server với cache
-      if (this.isDataChanged(cachedRequests, serverRequests)) {
-        console.log('Dữ liệu thay đổi, xử lý request mới...');
-        this.processNewRequests(serverRequests);
-        await this.setCachedData(serverRequests); // Cập nhật cache
-      } else {
-        console.log('Không có thay đổi trong dữ liệu.');
-      }
-    } catch (error) {
-      console.error('Lỗi polling:', error);
-    }
-  };
-
-  // Kiểm tra xem dữ liệu có thay đổi không
-  isDataChanged = (cachedRequests, serverRequests) => {
-    if (!cachedRequests || cachedRequests.length !== serverRequests.length) {
-      return true; // Số lượng khác nhau → dữ liệu thay đổi
-    }
-
-    // So sánh từng request (dựa trên id hoặc createdAt)
-    return serverRequests.some((serverReq, index) => {
-      const cachedReq = cachedRequests[index];
-      return (
-        serverReq.id !== cachedReq.id ||
-        new Date(serverReq.createdAt).getTime() !== new Date(cachedReq.createdAt).getTime()
-      );
+    this.orderConnection.on('UpdateOrderDetailStatus', (updatedOrder) => {
+      this.showNotification('Cập nhật đơn hàng', this.formatOrderUpdateBody(updatedOrder));
     });
   };
 
-  // ======= REQUEST PROCESSING ======= //
-  processNewRequests = (requests) => {
-    if (!requests || !requests.length) return;
-
-    const sortedRequests = [...requests].sort(
-      (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-    );
-
-    const newRequests = this.lastCreatedAt
-      ? sortedRequests.filter(
-          (req) => new Date(req.createdAt) > new Date(this.lastCreatedAt)
-        )
-      : sortedRequests;
-
-    if (newRequests.length > 0) {
-      this.lastCreatedAt = newRequests[newRequests.length - 1].createdAt;
-      newRequests.reverse().forEach((req) => {
-        console.log(`Phát hiện request mới: ${req.id}`);
-        this.showNotification(req);
-      });
-    }
+  // Định dạng nội dung thông báo cho yêu cầu mới
+  formatRequestBody = (request) => {
+    return `Yêu cầu mới từ bàn ${request.tableName}: ${request.typeName}`;
   };
 
-  // ======= NOTIFICATION HANDLING ======= //
-  showNotification = async (request) => {
+  // Định dạng nội dung thông báo cho cập nhật yêu cầu
+  formatRequestUpdateBody = (request) => {
+    return `Yêu cầu ${request.id} đã được cập nhật thành ${request.status}`;
+  };
+
+  // Định dạng nội dung thông báo cho đơn hàng mới
+  formatOrderBody = (order) => {
+    return `Đơn hàng mới từ bàn ${order.tableName}: ${order.dishName} x${order.quantity}`;
+  };
+
+  // Định dạng nội dung thông báo cho cập nhật đơn hàng
+  formatOrderUpdateBody = (order) => {
+    return `Đơn hàng ${order.id} đã được cập nhật thành ${order.status}`;
+  };
+
+  // Hiển thị thông báo hệ thống
+  showNotification = async (title, body) => {
     try {
-      console.log('Scheduling Notification:', request);
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🎉 New Request!',
-          body: this.formatNotificationBody(request),
-          data: { requestId: request.id },
+          title,
+          body,
         },
-        trigger: null,
+        trigger: null, // Hiển thị ngay lập tức
       });
-      console.log('Notification Scheduled!');
+      console.log('Thông báo đã được lên lịch:', title, body);
     } catch (error) {
-      console.error('Notification Error:', error);
+      console.error('Lỗi khi hiển thị thông báo:', error);
     }
   };
 
-  formatNotificationBody = (request) => [
-    `Mã order: ${request.orderId}`,
-    `Loại: ${request.typeName}`,
-    `Ghi chú: ${request.note || 'Không có ghi chú'}`,
-    `Thời gian: ${request.createdAt}`,
-  ].join('\n');
+  // Dừng kết nối SignalR (tuỳ chọn)
+  stop = async () => {
+    try {
+      await this.requestConnection.stop();
+      await this.orderConnection.stop();
+      console.log('Đã dừng các kết nối SignalR');
+    } catch (err) {
+      console.error('Lỗi khi dừng kết nối:', err);
+    }
+  };
 }
 
 export default new NotificationService();

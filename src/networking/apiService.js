@@ -1,20 +1,58 @@
-import axiosInstance from './axiosConfig';
+import axiosInstance from "./axiosConfig";
 
 class ApiService {
-  async fetchDish(id) {
-    return axiosInstance.get(`/dish/${id}`);
+  async fetchDish(id, token) {
+    return axiosInstance.get(`/dishes/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
   }
 
-  async fetchAllDishes() {
-    return axiosInstance.get('/dish');
+  async fetchAllDishes(token) {
+    return axiosInstance.get("/dishes", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
   }
 
-  async fetchCategories() {
-    return axiosInstance.get('/categories');
+  async fetchCategories(token) {
+    return axiosInstance.get("/categories", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
   }
 
-  async fetchRequests() {
-    return axiosInstance.get('/requests');
+  async fetchRequests(token) {
+    return axiosInstance.get("/requests", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+  async updateOrderStatus(id, status, token) {
+    return axiosInstance.put(
+      `/requests/${id}`,
+      { status },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+  }
+  async updateRequestStatus(id, status, token) {
+    return axiosInstance.put(
+      `/requests/${id}`,
+      { status },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
   }
 }
 
