@@ -8,13 +8,13 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { Table, Row, Rows } from "react-native-table-component";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
 import * as signalR from "@microsoft/signalr";
 import Toast from "react-native-toast-message";
-import { Button, Menu } from "react-native-paper";
+import { Button, Menu, DataTable, Modal, Portal, Paragraph } from "react-native-paper";
 import { AuthContext } from "../context/AuthContext";
+import { apiService } from "../networking/apiService";
 
 const RequestScreen = () => {
   const [requests, setRequests] = useState([]);
@@ -23,15 +23,14 @@ const RequestScreen = () => {
   const [showPicker, setShowPicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedTable, setSelectedTable] = useState("");
+  const [selectedTable, setSelectedTable] = useState("Tất cả");
   const [tableOptions, setTableOptions] = useState([]);
   const [menuVisible, setMenuVisible] = useState(false);
-  const restaurantId = 1; 
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const restaurantId = 1;
 
   const { auth } = useContext(AuthContext);
-
-  const tableHead = ["Bàn", "Loại", "Ghi chú", "Thời gian", "Trạng thái", "Hành động"];
-  const widthArr = [80, 120, 150, 100, 90, 150];
 
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
@@ -51,7 +50,7 @@ const RequestScreen = () => {
       });
 
     connection.on("LoadCurrentRequest", (data) => {
-      setRequests(data.data || data); 
+      setRequests(data.data || data);
       setLoading(false);
     });
 
@@ -102,7 +101,7 @@ const RequestScreen = () => {
 
   useEffect(() => {
     filterRequests();
-  }, [requests, dateFilter, selectedTable, filterRequests]);
+  }, [requests, dateFilter, selectedTable]);
 
   const filterRequests = useCallback(() => {
     const formattedDate = dayjs(dateFilter).format("YYYY-MM-DD");
@@ -138,11 +137,22 @@ const RequestScreen = () => {
       Alert.alert("Lỗi", "Token xác thực không tồn tại. Vui lòng đăng nhập lại.");
       return;
     }
-      if (response.ok) {
+
+    try {
+      const response = await apiService.updateRequestStatus(id, status, auth.token);
+
+      if (response.status === 200) {
+        setRequests((prevRequests) =>
+          prevRequests.map((request) =>
+            request.id === id ? { ...request, status } : request
+          )
+        );
         Alert.alert("Thành công", `Đã cập nhật trạng thái thành ${getStatusStyle(status).text}`);
-      } else {
-        Alert.alert("Lỗi", "Không thể cập nhật trạng thái yêu cầu.");
-      }  
+      }
+    } catch (error) {
+      console.error("Lỗi cập nhật trạng thái:", error);
+      Alert.alert("Lỗi", "Có lỗi xảy ra khi cập nhật trạng thái.");
+    }
   };
 
   const getActionButtons = (request) => {
@@ -150,31 +160,39 @@ const RequestScreen = () => {
     switch (status) {
       case "pending":
         return (
-          <View style={styles.buttonContainer}>
-            <Button
-              mode="contained"
-              onPress={() => updateRequestStatus(id, "inProgress")}
-              style={styles.button}
-            >
-              Xử lý
-            </Button>
-          </View>
+          <Button
+            mode="contained"
+            onPress={() => updateRequestStatus(id, "inProgress")}
+            style={styles.button}
+            labelStyle={styles.buttonLabel}
+          >
+            Xử lý
+          </Button>
         );
       case "inProgress":
         return (
-          <View style={styles.buttonContainer}>
-            <Button
-              mode="contained"
-              onPress={() => updateRequestStatus(id, "completed")}
-              style={styles.button}
-            >
-              Hoàn tất
-            </Button>
-          </View>
+          <Button
+            mode="contained"
+            onPress={() => updateRequestStatus(id, "completed")}
+            style={styles.button}
+            labelStyle={styles.buttonLabel}
+          >
+            Hoàn tất
+          </Button>
         );
       default:
         return null;
     }
+  };
+
+  const showRequestDetails = (request) => {
+    setSelectedRequest(request);
+    setModalVisible(true);
+  };
+
+  const hideModal = () => {
+    setModalVisible(false);
+    setSelectedRequest(null);
   };
 
   const renderContent = () => {
@@ -182,6 +200,7 @@ const RequestScreen = () => {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#3498db" />
+          <Text style={styles.loadingText}>Đang tải dữ liệu...</Text>
         </View>
       );
     }
@@ -203,63 +222,92 @@ const RequestScreen = () => {
       );
     }
 
-    const tableData = filteredRequests.map((request) => [
-      request?.tableName || "--",
-      request?.typeName || "--",
-      <Text style={styles.noteText} key={`note-${request.id}`}>{request?.note || "--"}</Text>,
-      request?.createdAt
-        ? dayjs(request.createdAt, "YYYY-MM-DD HH:mm:ss").format("HH:mm")
-        : "--",
-      <View
-        style={[
-          styles.statusBadge,
-          { backgroundColor: getStatusStyle(request?.status).bg },
-        ]}
-        key={`status-${request.id}`}
-      >
-        <Text
-          style={[
-            styles.statusText,
-            { color: getStatusStyle(request?.status).textColor },
-          ]}
-        >
-          {getStatusStyle(request?.status).text}
-        </Text>
-      </View>,
-      <View style={{ padding: 8 }} key={`action-${request.id}`}>
-        {getActionButtons(request)}
-      </View>,
-    ]);
+    return (
+      <ScrollView>
+        <DataTable style={styles.table}>
+          <DataTable.Header style={styles.headerRow}>
+            <DataTable.Title style={styles.headerCell}>Bàn</DataTable.Title>
+            <DataTable.Title style={styles.headerCell}>Thời gian</DataTable.Title>
+            <DataTable.Title style={styles.headerCell}>Trạng thái & Hành động</DataTable.Title>
+          </DataTable.Header>
 
-    console.log("Thời gian nhận yêu cầu",tableData.request?.createdAt);
+          {filteredRequests.length > 0 ? (
+            filteredRequests.map((request, index) => (
+              <DataTable.Row 
+                key={request.id} 
+                style={index % 2 === 0 ? styles.evenRow : styles.oddRow}
+                onPress={() => showRequestDetails(request)}
+              >
+                <DataTable.Cell style={styles.cell}>
+                  {request?.tableName || "--"}
+                </DataTable.Cell>
+                <DataTable.Cell style={styles.cell}>
+                  {request?.createdAt
+                    ? dayjs(request.createdAt, "YYYY-MM-DD HH:mm:ss").format("HH:mm")
+                    : "--"}
+                </DataTable.Cell>
+                <DataTable.Cell style={styles.cell}>
+                  <View style={styles.statusContainer}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: getStatusStyle(request?.status).bg },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusText,
+                          { color: getStatusStyle(request?.status).textColor },
+                        ]}
+                      >
+                        {getStatusStyle(request?.status).text}
+                      </Text>
+                    </View>
+                    {getActionButtons(request)}
+                  </View>
+                </DataTable.Cell>
+              </DataTable.Row>
+            ))
+          ) : (
+            <DataTable.Row>
+              <DataTable.Cell style={styles.noDataCell}>
+                Không có yêu cầu nào trong ngày này
+              </DataTable.Cell>
+            </DataTable.Row>
+          )}
+        </DataTable>
+      </ScrollView>
+    );
+  };
+
+  const renderModal = () => {
+    if (!selectedRequest) return null;
 
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.tableWrapper}>
-          <Table borderStyle={styles.tableBorder}>
-            <Row
-              data={tableHead}
-              style={styles.headerRow}
-              textStyle={styles.headerText}
-              widthArr={widthArr}
-            />
-            {tableData.length > 0 ? (
-              <Rows
-                data={tableData}
-                widthArr={widthArr}
-                style={(index) => (index % 2 === 0 ? styles.evenRow : null)}
-                textStyle={styles.rowText}
-              />
-            ) : (
-              <View style={styles.noDataRow}>
-                <Text style={styles.noDataText}>
-                  Không có yêu cầu nào trong ngày này
-                </Text>
-              </View>
-            )}
-          </Table>
-        </View>
-      </ScrollView>
+      <Portal>
+        <Modal 
+          visible={modalVisible} 
+          onDismiss={hideModal}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <Text style={styles.modalTitle}>Chi tiết yêu cầu</Text>
+          <View style={styles.modalContent}>
+            <Paragraph>ID: {selectedRequest.id}</Paragraph>
+            <Paragraph>Bàn: {selectedRequest.tableName || "--"}</Paragraph>
+            <Paragraph>Loại: {selectedRequest.typeName || "--"}</Paragraph>
+            <Paragraph>Ghi chú: {selectedRequest.note || "--"}</Paragraph>
+            <Paragraph>
+              Thời gian: {selectedRequest.createdAt
+                ? dayjs(selectedRequest.createdAt, "YYYY-MM-DD HH:mm:ss").format("DD/MM/YYYY HH:mm")
+                : "--"}
+            </Paragraph>
+            <Paragraph>Trạng thái: {getStatusStyle(selectedRequest.status).text}</Paragraph>
+          </View>
+          <Button mode="contained" onPress={hideModal} style={styles.modalButton}>
+            Đóng
+          </Button>
+        </Modal>
+      </Portal>
     );
   };
 
@@ -285,8 +333,9 @@ const RequestScreen = () => {
               onPress={openMenu}
               mode="contained-tonal"
               style={styles.menuButton}
+              labelStyle={styles.menuButtonLabel}
             >
-              {selectedTable || "Chọn bàn"}
+              {selectedTable}
             </Button>
           }
           style={styles.menuContainer}
@@ -299,6 +348,7 @@ const RequestScreen = () => {
                 closeMenu();
               }}
               title={table}
+              titleStyle={styles.menuItemText}
             />
           ))}
         </Menu>
@@ -316,7 +366,8 @@ const RequestScreen = () => {
         />
       )}
 
-      <ScrollView>{renderContent()}</ScrollView>
+      <ScrollView style={styles.contentContainer}>{renderContent()}</ScrollView>
+      {renderModal()}
       <Toast />
     </View>
   );
@@ -336,67 +387,77 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     backgroundColor: "#3498db",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 8,
+    elevation: 2,
   },
   dateButtonText: {
     color: "white",
-    fontWeight: "500",
+    fontWeight: "600",
+    fontSize: 16,
   },
-  tableWrapper: {
-    borderRadius: 12,
+  menuButton: {
+    backgroundColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  menuButtonLabel: {
+    color: "#333",
+    fontWeight: "600",
+  },
+  menuContainer: {
+    marginTop: 10,
+  },
+  menuItemText: {
+    fontSize: 14,
+    color: "#333",
+  },
+  table: {
     backgroundColor: "white",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.23,
-    shadowRadius: 2.62,
+    borderRadius: 12,
     elevation: 4,
   },
-  tableBorder: {
-    borderWidth: 1,
-    borderColor: "#ecf0f1",
-  },
   headerRow: {
-    height: 50,
     backgroundColor: "#3498db",
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
-  headerText: {
-    color: "white",
-    fontWeight: "600",
-    textAlign: "center",
-    fontSize: 16,
+  headerCell: {
+    flex: 1,
+    justifyContent: "center",
   },
   evenRow: {
     backgroundColor: "#f8f9fa",
   },
-  rowText: {
-    textAlign: "center",
-    padding: 8,
-    fontSize: 14,
-    color: "#333",
+  oddRow: {
+    backgroundColor: "#ffffff",
   },
-  noteText: {
-    paddingLeft: 8,
-    textAlign: "left",
-    fontSize: 14,
-    color: "#333",
-  },
-  noDataRow: {
-    height: 100,
+  cell: {
+    flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "white",
   },
-  noDataText: {
-    color: "#95a5a6",
-    fontSize: 16,
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  noDataCell: {
+    flex: 3,
+    justifyContent: "center",
+    height: 100,
   },
   centerContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     minHeight: 200,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: "#3498db",
+    fontSize: 16,
   },
   errorText: {
     color: "#e74c3c",
@@ -408,6 +469,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#3498db",
     padding: 10,
     borderRadius: 5,
+    elevation: 2,
   },
   retryText: {
     color: "white",
@@ -417,25 +479,37 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 4,
     paddingHorizontal: 8,
-    alignSelf: "center",
   },
   statusText: {
     fontSize: 12,
     fontWeight: "500",
-    textAlign: "center",
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
   },
   button: {
-    marginHorizontal: 4,
+    backgroundColor: "#3498db",
   },
-  menuButton: {
-    marginTop: 5,
+  buttonLabel: {
+    color: "white",
+    fontWeight: "600",
   },
-  menuContainer: {
-    marginTop: 40,
+  contentContainer: {
+    flex: 1,
+  },
+  modalContainer: {
+    backgroundColor: "white",
+    padding: 20,
+    margin: 20,
+    borderRadius: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+  },
+  modalContent: {
+    marginBottom: 20,
+  },
+  modalButton: {
+    backgroundColor: "#3498db",
   },
 });
 

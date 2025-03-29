@@ -24,6 +24,11 @@ const OrderScreen = () => {
   // Lấy danh sách bàn duy nhất từ danh sách order
   const uniqueTables = Array.from(new Set(orders.map((order) => order.tableName)));
 
+  // Hàm sắp xếp orders theo id giảm dần
+  const sortOrdersDescending = (orderList) => {
+    return [...orderList].sort((a, b) => b.id - a.id);
+  };
+
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(
@@ -33,8 +38,9 @@ const OrderScreen = () => {
       .build();
 
     connection.on("LoadCurrentOrders", (orderData) => {
-      setOrders(orderData);
-      console.log("Orders loaded:", orderData);
+      const sortedOrders = sortOrdersDescending(orderData);
+      setOrders(sortedOrders);
+      console.log("Orders loaded:", sortedOrders);
       setLoading(false);
     });
 
@@ -50,7 +56,10 @@ const OrderScreen = () => {
         topOffset: 30,
         bottomOffset: 40,
       });
-      setOrders((prevOrders) => [newOrder, ...prevOrders]);
+      setOrders((prevOrders) => {
+        const updatedOrders = [...prevOrders, newOrder];
+        return sortOrdersDescending(updatedOrders);
+      });
     });
 
     connection.on("UpdateOrderDetailStatus", (updatedOrderDetail) => {
@@ -64,13 +73,14 @@ const OrderScreen = () => {
         topOffset: 30,
         bottomOffset: 40,
       });
-      setOrders((prevOrders) =>
-        prevOrders.map((order) =>
+      setOrders((prevOrders) => {
+        const updatedOrders = prevOrders.map((order) =>
           order.id === updatedOrderDetail.id
             ? { ...order, status: updatedOrderDetail.status }
             : order
-        )
-      );
+        );
+        return sortOrdersDescending(updatedOrders);
+      });
     });
 
     connection.start().catch((err) => console.error("Connection failed:", err));
@@ -116,11 +126,12 @@ const OrderScreen = () => {
 
       if (response.ok) {
         // Cập nhật trạng thái đơn hàng trong state
-        setOrders((prevOrders) =>
-          prevOrders.map((order) =>
+        setOrders((prevOrders) => {
+          const updatedOrders = prevOrders.map((order) =>
             order.id === orderId ? { ...order, status: newStatus } : order
-          )
-        );
+          );
+          return sortOrdersDescending(updatedOrders);
+        });
         Toast.show({
           type: "success",
           position: "top",
@@ -288,7 +299,7 @@ const OrderScreen = () => {
         </View>
 
         {/* Hiển thị danh sách đơn hàng */}
-        {filteredOrders.slice().reverse().map((order, index) => (
+        {filteredOrders.map((order, index) => (
           <Card key={index} style={styles.orderCard}>
             <Card.Content style={styles.cardContent}>
               <Image source={{ uri: order.dishImage }} style={styles.dishImage} />

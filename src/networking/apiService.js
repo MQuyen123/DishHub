@@ -33,7 +33,7 @@ class ApiService {
     });
   }
   async updateOrderStatus(id, status, token) {
-    return axiosInstance.put(
+    return axiosInstance.patch(
       `/requests/${id}`,
       { status },
       {
@@ -44,7 +44,7 @@ class ApiService {
     );
   }
   async updateRequestStatus(id, status, token) {
-    return axiosInstance.put(
+    return axiosInstance.patch(
       `/requests/${id}`,
       { status },
       {

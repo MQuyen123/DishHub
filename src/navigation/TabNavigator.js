@@ -7,6 +7,7 @@ import {
 import { Image, View, TouchableOpacity, Text } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import HomeScreen from "../screens/HomeScreen";
 import DishHubBotScreen from "../screens/DishHubBotScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -15,6 +16,7 @@ import RequestScreen from "../screens/RequestScreen";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import OrderScreen from "../screens/OrderScreen";
 import DishDetailCreen from "../screens/DishDetailScreen";
+import PayScreen from "../screens/PayScreen";
 
 const Drawer = createDrawerNavigator();
 
@@ -112,6 +114,19 @@ const TabNavigator = () => {
           drawerIcon: ({ color, size }) => (
             <MaterialCommunityIcons
               name="food-turkey"
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
+       <Drawer.Screen
+        name="Thanh toán"
+        component={PayScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <MaterialIcons
+              name="payments"
               color={color}
               size={size}
             />
